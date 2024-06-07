@@ -266,6 +266,93 @@ def list_points(message):
         response = "Points List:\n" + "\n".join([f"{bot.get_chat(int(user_id)).first_name}: {points}" for user_id, points in points_list])
     bot.reply_to(message, response)
 
+@bot.message_handler(commands=['progress'])
+def send_progress(message):
+    # Load points data from points.json manually
+    try:
+        with open('points.json', 'r') as file:
+            points_data = json.load(file)
+    except FileNotFoundError:
+        points_data = {}
+
+    # Sort users by points
+    sorted_points = sorted(points_data.items(), key=lambda item: item[1], reverse=True)
+    progress_message = "<b>Progress:</b>\n"
+    for index, (user_id, points) in enumerate(sorted_points[:21]):  # Show medals for up to 21 users
+        rank = index + 1  # Calculate rank number
+        if index == 0:
+            medal = "🥇"
+        elif index == 1:
+            medal = "🥈"
+        elif index == 2:
+            medal = "🥉"
+        else:
+            # Use HTML <b> tags for ranks after 3
+            medal = f"<b>{rank}.</b>"
+
+        # Attempt to fetch user's full name, then first name, else use user ID
+        user_name = str(user_id)  # Default to user ID
+        try:
+            user_info = bot.get_chat(user_id)
+            if user_info.first_name and user_info.last_name:
+                user_name = f"{user_info.first_name} {user_info.last_name}"  # Full name
+            elif user_info.first_name:
+                user_name = user_info.first_name  # First name only
+        except telebot.apihelper.ApiTelegramException as e:
+            if e.error_code == 400:
+                logging.error(f"Chat not found for user_id: {user_id}")
+                # Do not skip this user, user ID will be used as the name
+
+        # Format the message with bold username and bold rank (if applicable)
+        progress_message += f"{medal} <b>{user_name}</b>: {points} points\n"
+    progress_message += "\nMake and send questions to earn points and become well-known!"
+
+    # Send the progress message as a message with HTML formatting
+    bot.send_message(message.chat.id, progress_message, parse_mode="HTML")
+
+# Existing command handlers
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "Welcome! I'm your quiz bot.")
+# Existing command handlers
+@bot.message_handler(commands=['totalquiz'])
+# Existing command handlers
+@bot.message_handler(commands=['totalquiz'])
+def total_quiz(message):
+    # Load questions from quiz.json
+    with open('quiz.json', 'r') as file:
+        quiz_data = json.load(file)
+    total_questions = len(quiz_data['questions'])
+    bot.reply_to(message, f"The number of quizzes in my bin: count within.\nTotal: <b>{total_questions}</b>", parse_mode="HTML")
+
+@bot.message_handler(commands=['quiz'])
+def send_quiz(message):
+    while True:
+        try:
+            # Load questions from quiz.json
+            with open('quiz.json', 'r') as file:
+                quiz_data = json.load(file)
+            # Select a random question
+            question = random.choice(quiz_data['questions'])
+            # Send the question as a poll
+            correct_option_id = None
+            if question['correct_option'] is not None:
+                correct_option_id = int(question['correct_option'])
+            bot.send_poll(
+                chat_id=message.chat.id,
+                question=question['question'],
+                options=question['options'],
+                is_anonymous=False,
+                type='quiz',
+                correct_option_id=correct_option_id,
+                explanation=question['explanation']
+            )
+            break  # Exit the loop if the poll is sent successfully
+        except telebot.apihelper.ApiTelegramException as e:
+            # If there's an error with sending the poll, log the error and try another question
+            print(f"Error sending poll: {e}")
+            continue
+
 # Start polling for messages
 bot.polling(none_stop=True)
     
