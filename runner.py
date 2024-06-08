@@ -45,7 +45,7 @@ if __name__ == "__main__":
         password = decrypted_content[password_start_index:].strip()
 
         # Use the extracted password for login
-        print("Logged in and yoyr bot has been started:")
+        print("Logged in and your bot has been started:")
 
         # Remove null bytes from the decrypted content
         decrypted_content_cleaned = decrypted_content.replace("\x00", "")
